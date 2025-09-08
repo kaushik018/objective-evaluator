@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Outlet, Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useAuth } from "@/contexts/AuthContext";
 import { 
   BarChart3, 
   Settings, 
@@ -10,7 +12,9 @@ import {
   GitCompare, 
   Activity,
   Menu,
-  X
+  X,
+  LogOut,
+  User
 } from "lucide-react";
 
 const navigation = [
@@ -23,6 +27,15 @@ const navigation = [
 export default function DashboardLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
+  const { user, signOut } = useAuth();
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -48,7 +61,7 @@ export default function DashboardLayout() {
           <div className="flex items-center px-6 py-6 border-b border-border">
             <Activity className="h-8 w-8 text-primary mr-3" />
             <h1 className="text-xl font-bold bg-gradient-to-r from-primary to-primary bg-clip-text text-transparent">
-              SoftwareEval
+              OEval
             </h1>
           </div>
 
@@ -77,8 +90,24 @@ export default function DashboardLayout() {
             })}
           </nav>
 
-          {/* Settings */}
-          <div className="px-4 py-4 border-t border-border">
+          {/* User Profile & Sign Out */}
+          <div className="px-4 py-4 border-t border-border space-y-2">
+            <div className="flex items-center space-x-3 px-4 py-2">
+              <Avatar className="h-8 w-8">
+                <AvatarImage 
+                  src={user?.user_metadata?.avatar_url} 
+                  alt={user?.user_metadata?.user_name || user?.email} 
+                />
+                <AvatarFallback>
+                  <User className="h-4 w-4" />
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate">
+                  {user?.user_metadata?.user_name || user?.email}
+                </p>
+              </div>
+            </div>
             <Link
               to="/settings"
               className="flex items-center px-4 py-3 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
@@ -86,6 +115,14 @@ export default function DashboardLayout() {
               <Settings className="h-5 w-5 mr-3" />
               Settings
             </Link>
+            <Button
+              onClick={handleSignOut}
+              variant="ghost"
+              className="w-full justify-start px-4 py-3 text-sm text-muted-foreground hover:text-foreground"
+            >
+              <LogOut className="h-4 w-4 mr-2" />
+              Sign Out
+            </Button>
           </div>
         </div>
       </div>

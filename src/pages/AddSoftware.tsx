@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -7,12 +8,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/use-toast";
+import { useSoftware } from "@/hooks/useSoftware";
 import { 
   Plus, 
   Globe, 
   X, 
   Loader2,
-  CheckCircle
+  CheckCircle,
+  ArrowLeft
 } from "lucide-react";
 
 interface SoftwareFormData {
@@ -40,6 +43,8 @@ const categories = [
 
 export default function AddSoftware() {
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const { addSoftware } = useSoftware();
   const [isLoading, setIsLoading] = useState(false);
   const [newTag, setNewTag] = useState("");
   const [formData, setFormData] = useState<SoftwareFormData>({
@@ -82,31 +87,26 @@ export default function AddSoftware() {
     setIsLoading(true);
 
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await addSoftware({
+        name: formData.name,
+        version: formData.version || undefined,
+        category: formData.category,
+        description: formData.description || undefined,
+        website: formData.website || undefined,
+        api_endpoint: formData.apiEndpoint || undefined,
+        status_page: formData.statusPage || undefined,
+        tags: formData.tags
+      });
       
       toast({
         title: "Success!",
         description: `${formData.name} has been added for evaluation.`,
       });
 
-      // Reset form
-      setFormData({
-        name: "",
-        version: "",
-        category: "",
-        website: "",
-        description: "",
-        apiEndpoint: "",
-        statusPage: "",
-        tags: []
-      });
+      // Navigate back to dashboard
+      navigate('/');
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to add software. Please try again.",
-        variant: "destructive"
-      });
+      // Error handling is done in the hook
     } finally {
       setIsLoading(false);
     }
@@ -117,11 +117,20 @@ export default function AddSoftware() {
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold">Add Software</h1>
-        <p className="text-muted-foreground mt-1">
-          Add a new software application for objective evaluation and monitoring
-        </p>
+      <div className="flex items-center space-x-4">
+        <Button 
+          variant="ghost" 
+          size="icon"
+          onClick={() => navigate('/')}
+        >
+          <ArrowLeft className="h-4 w-4" />
+        </Button>
+        <div>
+          <h1 className="text-3xl font-bold">Add Software</h1>
+          <p className="text-muted-foreground mt-1">
+            Add a new software application for objective evaluation and monitoring
+          </p>
+        </div>
       </div>
 
       {/* Form */}

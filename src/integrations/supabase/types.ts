@@ -14,7 +14,166 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      activity_logs: {
+        Row: {
+          activity_type: string
+          created_at: string
+          description: string | null
+          id: string
+          software_id: string | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          activity_type: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          software_id?: string | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          activity_type?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          software_id?: string | null
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activity_logs_software_id_fkey"
+            columns: ["software_id"]
+            isOneToOne: false
+            referencedRelation: "software"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      performance_logs: {
+        Row: {
+          checked_at: string
+          error_message: string | null
+          id: string
+          response_time_ms: number | null
+          software_id: string
+          status_code: number | null
+          uptime_percentage: number | null
+        }
+        Insert: {
+          checked_at?: string
+          error_message?: string | null
+          id?: string
+          response_time_ms?: number | null
+          software_id: string
+          status_code?: number | null
+          uptime_percentage?: number | null
+        }
+        Update: {
+          checked_at?: string
+          error_message?: string | null
+          id?: string
+          response_time_ms?: number | null
+          software_id?: string
+          status_code?: number | null
+          uptime_percentage?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "performance_logs_software_id_fkey"
+            columns: ["software_id"]
+            isOneToOne: false
+            referencedRelation: "software"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          id: string
+          updated_at: string
+          user_id: string
+          username: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+          username?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+          username?: string | null
+        }
+        Relationships: []
+      }
+      software: {
+        Row: {
+          api_endpoint: string | null
+          category: string
+          created_at: string
+          description: string | null
+          id: string
+          integrations_count: number | null
+          name: string
+          performance_score: number | null
+          status: string | null
+          status_page: string | null
+          tags: string[] | null
+          updated_at: string
+          uptime_percentage: number | null
+          user_id: string
+          version: string | null
+          website: string | null
+        }
+        Insert: {
+          api_endpoint?: string | null
+          category: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          integrations_count?: number | null
+          name: string
+          performance_score?: number | null
+          status?: string | null
+          status_page?: string | null
+          tags?: string[] | null
+          updated_at?: string
+          uptime_percentage?: number | null
+          user_id: string
+          version?: string | null
+          website?: string | null
+        }
+        Update: {
+          api_endpoint?: string | null
+          category?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          integrations_count?: number | null
+          name?: string
+          performance_score?: number | null
+          status?: string | null
+          status_page?: string | null
+          tags?: string[] | null
+          updated_at?: string
+          uptime_percentage?: number | null
+          user_id?: string
+          version?: string | null
+          website?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

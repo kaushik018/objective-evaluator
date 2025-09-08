@@ -25,7 +25,7 @@ interface SoftwareData {
   uptimePercentage: number;
   integrations: number;
   lastUpdated: string;
-  status: "excellent" | "good" | "fair" | "poor";
+  status: "excellent" | "good" | "fair" | "poor" | "pending";
   website?: string;
 }
 
@@ -48,6 +48,7 @@ export function SoftwareCard({
       case "good": return "text-primary";
       case "fair": return "text-warning";
       case "poor": return "text-destructive";
+      case "pending": return "text-muted-foreground";
       default: return "text-muted-foreground";
     }
   };
@@ -58,6 +59,7 @@ export function SoftwareCard({
       case "good": return "secondary" as const;
       case "fair": return "outline" as const;
       case "poor": return "destructive" as const;
+      case "pending": return "outline" as const;
       default: return "outline" as const;
     }
   };
