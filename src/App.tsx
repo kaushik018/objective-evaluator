@@ -8,6 +8,8 @@ import DashboardLayout from "./components/Layout/DashboardLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Index from "./pages/Index";
 import AddSoftware from "./pages/AddSoftware";
+import Compare from "./pages/Compare";
+import Analytics from "./pages/Analytics";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
@@ -29,6 +31,8 @@ const App = () => (
             }>
               <Route index element={<Index />} />
               <Route path="add-software" element={<AddSoftware />} />
+              <Route path="compare" element={<Compare />} />
+              <Route path="analytics" element={<Analytics />} />
             </Route>
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
