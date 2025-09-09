@@ -39,6 +39,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signInWithGithub = async () => {
     const redirectUrl = `${window.location.origin}/`;
+    console.log('Attempting GitHub sign in with redirect URL:', redirectUrl);
     
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'github',
@@ -48,6 +49,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
     
     if (error) {
+      console.error('GitHub sign in error:', error);
       throw error;
     }
   };
