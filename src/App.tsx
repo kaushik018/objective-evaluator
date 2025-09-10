@@ -10,6 +10,7 @@ import Index from "./pages/Index";
 import AddSoftware from "./pages/AddSoftware";
 import Compare from "./pages/Compare";
 import Analytics from "./pages/Analytics";
+import Settings from "./pages/Settings";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
@@ -33,6 +34,7 @@ const App = () => (
               <Route path="add-software" element={<AddSoftware />} />
               <Route path="compare" element={<Compare />} />
               <Route path="analytics" element={<Analytics />} />
+              <Route path="settings" element={<Settings />} />
             </Route>
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
