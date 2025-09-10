@@ -6,6 +6,8 @@ import { useSoftware } from "@/hooks/useSoftware";
 import { useActivityLogs } from "@/hooks/useActivityLogs";
 import { Link } from "react-router-dom";
 import { formatDistanceToNow } from "date-fns";
+import { supabase } from '@/integrations/supabase/client';
+import { useEffect } from 'react';
 
 const getActivityColor = (type: string) => {
   switch (type) {
@@ -36,8 +38,41 @@ const getStatusHealth = (status: string) => {
 };
 
 export default function Analytics() {
-  const { software, loading: softwareLoading } = useSoftware();
-  const { logs, loading: logsLoading } = useActivityLogs();
+  const { software, loading: softwareLoading, refetch } = useSoftware();
+  const { logs, loading: logsLoading, refetch: refetchLogs } = useActivityLogs();
+
+  // Set up real-time updates
+  useEffect(() => {
+    const channel = supabase
+      .channel('analytics-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'software'
+        },
+        () => {
+          refetch();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'activity_logs'
+        },
+        () => {
+          refetchLogs();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [refetch, refetchLogs]);
 
   if (softwareLoading) {
     return (

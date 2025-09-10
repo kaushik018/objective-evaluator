@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Link } from "react-router-dom";
 import { useSoftware } from "@/hooks/useSoftware";
 import { useActivityLogs } from "@/hooks/useActivityLogs";
+import { supabase } from '@/integrations/supabase/client';
+import { useEffect } from 'react';
 import { 
   Activity, 
   Clock, 
@@ -16,8 +18,41 @@ import {
 } from "lucide-react";
 
 export default function Dashboard() {
-  const { software, loading: softwareLoading, deleteSoftware } = useSoftware();
-  const { logs, loading: logsLoading } = useActivityLogs();
+  const { software, loading: softwareLoading, deleteSoftware, refetch } = useSoftware();
+  const { logs, loading: logsLoading, refetch: refetchLogs } = useActivityLogs();
+
+  // Set up real-time updates
+  useEffect(() => {
+    const channel = supabase
+      .channel('dashboard-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'software'
+        },
+        () => {
+          refetch();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'activity_logs'
+        },
+        () => {
+          refetchLogs();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [refetch, refetchLogs]);
 
   // Calculate metrics from real data
   const metrics = {

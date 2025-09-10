@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { GitCompare, TrendingUp, TrendingDown, Minus, Plus } from "lucide-react";
 import { useSoftware } from "@/hooks/useSoftware";
 import { Link } from "react-router-dom";
+import { supabase } from '@/integrations/supabase/client';
+import { useEffect } from 'react';
 
 // Popular software benchmarks for comparison
 const POPULAR_SOFTWARE = [
@@ -99,6 +101,29 @@ const compareMetrics = (userSoftware: any[], popularSoftware: any[]) => {
 
 export default function Compare() {
   const { software, loading } = useSoftware();
+
+  // Set up real-time updates
+  useEffect(() => {
+    const channel = supabase
+      .channel('compare-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'software'
+        },
+        () => {
+          // Force re-render when software is updated
+          window.location.reload();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
   
   if (loading) {
     return (
