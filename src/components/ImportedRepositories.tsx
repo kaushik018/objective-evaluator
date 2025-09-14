@@ -86,7 +86,7 @@ export function ImportedRepositories() {
           description: `${repo.platform} repository: ${repo.repository_name}`,
           website: repo.repository_url,
           tags: [repo.platform, repo.language].filter(Boolean),
-          status: 'active'
+          status: 'pending'
         });
 
       if (error) throw error;
@@ -162,7 +162,7 @@ export function ImportedRepositories() {
         description: `${repo.platform} repository: ${repo.repository_name}`,
         website: repo.repository_url,
         tags: [repo.platform, repo.language].filter(Boolean),
-        status: 'active'
+        status: 'pending'
       }));
 
       const { error } = await supabase
