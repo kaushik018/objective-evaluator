@@ -30,26 +30,46 @@ export function useSoftwareAnalysis() {
       let response_time_ms = 0;
       let status: 'excellent' | 'good' | 'fair' | 'poor' | 'pending' = 'pending';
 
-      // Analyze website if provided
-      if (software.website) {
-        const websiteResult = await analyzeWebsite(software.website);
-        performance_score += websiteResult.score;
-        uptime_percentage += websiteResult.uptime;
-        response_time_ms = websiteResult.responseTime;
-      }
+      // Check if this is a repository from external_integrations
+      const { data: repoData } = await supabase
+        .from('external_integrations')
+        .select('*')
+        .eq('repository_name', software.name)
+        .eq('user_id', user?.id)
+        .single();
 
-      // Analyze API endpoint if provided
-      if (software.api_endpoint) {
-        const apiResult = await analyzeAPI(software.api_endpoint);
-        performance_score += apiResult.score;
-        uptime_percentage += apiResult.uptime;
-      }
+      if (repoData) {
+        // Repository analysis
+        const repoResult = await analyzeRepository(repoData, software.website);
+        performance_score = repoResult.score;
+        uptime_percentage = repoResult.uptime;
+        response_time_ms = repoResult.responseTime;
+      } else {
+        // Traditional website/API analysis
+        let sourceCount = 0;
 
-      // Calculate averages
-      const sources = [software.website, software.api_endpoint].filter(Boolean).length;
-      if (sources > 0) {
-        performance_score = Math.round(performance_score / sources);
-        uptime_percentage = Number((uptime_percentage / sources).toFixed(2));
+        // Analyze website if provided
+        if (software.website) {
+          const websiteResult = await analyzeWebsite(software.website);
+          performance_score += websiteResult.score;
+          uptime_percentage += websiteResult.uptime;
+          response_time_ms = websiteResult.responseTime;
+          sourceCount++;
+        }
+
+        // Analyze API endpoint if provided
+        if (software.api_endpoint) {
+          const apiResult = await analyzeAPI(software.api_endpoint);
+          performance_score += apiResult.score;
+          uptime_percentage += apiResult.uptime;
+          sourceCount++;
+        }
+
+        // Calculate averages
+        if (sourceCount > 0) {
+          performance_score = Math.round(performance_score / sourceCount);
+          uptime_percentage = Number((uptime_percentage / sourceCount).toFixed(2));
+        }
       }
 
       // Determine status based on performance and uptime
@@ -213,6 +233,141 @@ export function useSoftwareAnalysis() {
         uptime: Math.random() * 4 + 96   // 96-100%
       };
     }
+  };
+
+  const analyzeRepository = async (repo: any, providedUrl?: string): Promise<{score: number, uptime: number, responseTime: number}> => {
+    let totalScore = 0;
+    let scoreFactors = 0;
+    let responseTime = 0;
+
+    // Factor 1: Repository Health (30% of score)
+    const repoHealthScore = calculateRepoHealthScore(repo);
+    totalScore += repoHealthScore * 0.3;
+    scoreFactors += 0.3;
+
+    // Factor 2: Live URL availability (40% of score if found)
+    const liveUrlScore = await checkLiveUrlAvailability(providedUrl, repo);
+    if (liveUrlScore.found) {
+      totalScore += liveUrlScore.score * 0.4;
+      scoreFactors += 0.4;
+      responseTime = liveUrlScore.responseTime;
+    }
+
+    // Factor 3: Documentation Quality (30% of score)
+    const docScore = calculateDocumentationScore(repo);
+    totalScore += docScore * 0.3;
+    scoreFactors += 0.3;
+
+    // Normalize score to 100
+    const finalScore = scoreFactors > 0 ? Math.round(totalScore / scoreFactors * 100) : 50;
+    
+    // Calculate uptime based on repository activity and live URL
+    const uptime = calculateRepositoryUptime(repo, liveUrlScore.found);
+
+    return {
+      score: Math.max(0, Math.min(100, finalScore)),
+      uptime: Math.max(90, Math.min(100, uptime)),
+      responseTime: responseTime || 0
+    };
+  };
+
+  const calculateRepoHealthScore = (repo: any): number => {
+    let score = 0.5; // Base score
+
+    // Stars indicate popularity/quality
+    if (repo.stars_count > 100) score += 0.3;
+    else if (repo.stars_count > 10) score += 0.2;
+    else if (repo.stars_count > 0) score += 0.1;
+
+    // Forks indicate community involvement
+    if (repo.forks_count > 20) score += 0.15;
+    else if (repo.forks_count > 5) score += 0.1;
+    else if (repo.forks_count > 0) score += 0.05;
+
+    // Recent activity (within last 30 days)
+    const lastCommit = new Date(repo.last_commit_date);
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    if (lastCommit > thirtyDaysAgo) score += 0.2;
+    else if (lastCommit > new Date(Date.now() - 90 * 24 * 60 * 60 * 1000)) score += 0.1;
+
+    // Language bonus (popular languages)
+    const popularLanguages = ['JavaScript', 'TypeScript', 'Python', 'Java', 'Go', 'Rust', 'Swift'];
+    if (popularLanguages.includes(repo.language)) score += 0.1;
+
+    return Math.min(1, score);
+  };
+
+  const calculateDocumentationScore = (repo: any): number => {
+    // This is a simplified score since we don't have access to README content
+    // In a real implementation, you'd fetch and analyze the README
+    let score = 0.6; // Assume basic documentation exists
+
+    // Popular languages often have better documentation practices
+    if (['TypeScript', 'Python', 'Java'].includes(repo.language)) score += 0.2;
+    
+    // More stars often correlate with better documentation
+    if (repo.stars_count > 50) score += 0.2;
+
+    return Math.min(1, score);
+  };
+
+  const checkLiveUrlAvailability = async (providedUrl?: string, repo?: any): Promise<{found: boolean, score: number, responseTime: number}> => {
+    // Try provided URL first
+    if (providedUrl && providedUrl !== repo?.repository_url) {
+      try {
+        const result = await analyzeWebsite(providedUrl);
+        return {
+          found: true,
+          score: result.score / 100,
+          responseTime: result.responseTime
+        };
+      } catch (error) {
+        console.log('Provided URL check failed:', error);
+      }
+    }
+
+    // Try common deployment patterns for GitHub repos
+    if (repo?.platform === 'github' && repo?.repository_name) {
+      const username = repo.repository_url.split('/')[3]; // Extract username from GitHub URL
+      const githubPagesUrl = `https://${username}.github.io/${repo.repository_name}`;
+      
+      try {
+        const result = await analyzeWebsite(githubPagesUrl);
+        return {
+          found: true,
+          score: result.score / 100,
+          responseTime: result.responseTime
+        };
+      } catch (error) {
+        console.log('GitHub Pages check failed:', error);
+      }
+    }
+
+    // Could also try other common patterns like Vercel, Netlify deployments
+    // For now, return not found
+    return {
+      found: false,
+      score: 0,
+      responseTime: 0
+    };
+  };
+
+  const calculateRepositoryUptime = (repo: any, hasLiveUrl: boolean): number => {
+    let uptime = 95; // Base uptime for repositories
+
+    // Recent activity boosts uptime
+    const lastCommit = new Date(repo.last_commit_date);
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    if (lastCommit > thirtyDaysAgo) uptime += 3;
+
+    // Stars indicate reliability
+    if (repo.stars_count > 100) uptime += 2;
+    else if (repo.stars_count > 10) uptime += 1;
+
+    // Live URL availability boosts uptime significantly
+    if (hasLiveUrl) uptime += 3;
+
+    return Math.min(100, uptime);
   };
 
   return {

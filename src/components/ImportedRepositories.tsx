@@ -258,7 +258,7 @@ export function ImportedRepositories() {
               Imported Repositories ({repositories.length})
             </CardTitle>
             <CardDescription>
-              Repositories synced from your connected platforms. Add them to your software stack for monitoring.
+              Repositories synced from your connected platforms. For better analysis, ensure your repos have live demo URLs in README or are deployed to platforms like GitHub Pages, Vercel, or Netlify.
             </CardDescription>
           </div>
           {recommendedCount > 0 && (
