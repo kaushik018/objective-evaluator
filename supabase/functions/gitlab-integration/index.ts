@@ -127,9 +127,9 @@ Deno.serve(async (req) => {
         .eq('platform', 'gitlab')
 
       const softwareToAdd = integrations?.filter(project => 
-        project.stars_count > 5 || // Popular projects
-        project.language && ['JavaScript', 'TypeScript', 'Python', 'Java', 'Go'].includes(project.language)
-      ).slice(0, 5) // Limit to 5 most relevant
+        project.stars_count > 0 || // Any starred projects
+        project.language && ['JavaScript', 'TypeScript', 'Python', 'Java', 'Go', 'Swift', 'C#', 'C++'].includes(project.language)
+      ).slice(0, 8) // Limit to 8 most relevant
 
       if (softwareToAdd && softwareToAdd.length > 0) {
         const software = softwareToAdd.map(project => ({

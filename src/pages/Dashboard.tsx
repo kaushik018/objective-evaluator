@@ -1,6 +1,8 @@
 import { EnhancedSoftwareList } from "@/components/EnhancedSoftwareList";
 import { RoleBasedDashboard } from "@/components/RoleBasedDashboard";
 import { SEOHead } from "@/components/SEOHead";
+import { IntegrationPanel } from "@/components/IntegrationPanel";
+import { ImportedRepositories } from "@/components/ImportedRepositories";
 import { useErrorTracking } from "@/hooks/useErrorTracking";
 import { useEffect } from 'react';
 
@@ -23,7 +25,11 @@ export default function Dashboard() {
         canonical="/dashboard"
       />
       <RoleBasedDashboard>
-        <EnhancedSoftwareList />
+        <div className="space-y-6">
+          <EnhancedSoftwareList />
+          <IntegrationPanel />
+          <ImportedRepositories />
+        </div>
       </RoleBasedDashboard>
     </>
   );
