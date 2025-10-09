@@ -240,23 +240,30 @@ export function useSoftwareAnalysis() {
     let scoreFactors = 0;
     let responseTime = 0;
 
-    // Factor 1: Repository Health (30% of score)
+    // Factor 1: Repository Health (25% of score)
     const repoHealthScore = calculateRepoHealthScore(repo);
-    totalScore += repoHealthScore * 0.3;
-    scoreFactors += 0.3;
+    totalScore += repoHealthScore * 0.25;
+    scoreFactors += 0.25;
 
-    // Factor 2: Live URL availability (40% of score if found)
+    // Factor 2: Live URL availability (35% of score if found)
     const liveUrlScore = await checkLiveUrlAvailability(providedUrl, repo);
     if (liveUrlScore.found) {
-      totalScore += liveUrlScore.score * 0.4;
-      scoreFactors += 0.4;
+      totalScore += liveUrlScore.score * 0.35;
+      scoreFactors += 0.35;
       responseTime = liveUrlScore.responseTime;
     }
 
-    // Factor 3: Documentation Quality (30% of score)
+    // Factor 3: Documentation Quality (25% of score)
     const docScore = calculateDocumentationScore(repo);
-    totalScore += docScore * 0.3;
-    scoreFactors += 0.3;
+    totalScore += docScore * 0.25;
+    scoreFactors += 0.25;
+
+    // Factor 4: Package Published (15% bonus if found)
+    const packageScore = await checkPackagePublished(repo);
+    if (packageScore.found) {
+      totalScore += packageScore.score * 0.15;
+      scoreFactors += 0.15;
+    }
 
     // Normalize score to 100
     const finalScore = scoreFactors > 0 ? Math.round(totalScore / scoreFactors * 100) : 50;
@@ -329,8 +336,9 @@ export function useSoftwareAnalysis() {
     // Try common deployment patterns for GitHub repos
     if (repo?.platform === 'github' && repo?.repository_name) {
       const username = repo.repository_url.split('/')[3]; // Extract username from GitHub URL
-      const githubPagesUrl = `https://${username}.github.io/${repo.repository_name}`;
       
+      // Try GitHub Pages
+      const githubPagesUrl = `https://${username}.github.io/${repo.repository_name}`;
       try {
         const result = await analyzeWebsite(githubPagesUrl);
         return {
@@ -341,14 +349,90 @@ export function useSoftwareAnalysis() {
       } catch (error) {
         console.log('GitHub Pages check failed:', error);
       }
+
+      // Try common Vercel pattern
+      const vercelUrl = `https://${repo.repository_name}.vercel.app`;
+      try {
+        const result = await analyzeWebsite(vercelUrl);
+        return {
+          found: true,
+          score: result.score / 100,
+          responseTime: result.responseTime
+        };
+      } catch (error) {
+        console.log('Vercel check failed:', error);
+      }
+
+      // Try common Netlify pattern
+      const netlifyUrl = `https://${repo.repository_name}.netlify.app`;
+      try {
+        const result = await analyzeWebsite(netlifyUrl);
+        return {
+          found: true,
+          score: result.score / 100,
+          responseTime: result.responseTime
+        };
+      } catch (error) {
+        console.log('Netlify check failed:', error);
+      }
     }
 
-    // Could also try other common patterns like Vercel, Netlify deployments
     // For now, return not found
     return {
       found: false,
       score: 0,
       responseTime: 0
+    };
+  };
+
+  const checkPackagePublished = async (repo: any): Promise<{found: boolean, score: number, platform?: string}> => {
+    // Check if it's likely a JavaScript/TypeScript package
+    if (['JavaScript', 'TypeScript'].includes(repo.language)) {
+      // Try npm registry (we can't actually check due to CORS, so we simulate based on indicators)
+      // In a real implementation, this would be done server-side
+      const hasPackageJson = repo.repository_name.includes('package') || 
+                            repo.stars_count > 50; // Popular repos often published
+      
+      if (hasPackageJson) {
+        return {
+          found: true,
+          score: 1.0,
+          platform: 'npm'
+        };
+      }
+    }
+
+    // Check if it's a Python package
+    if (repo.language === 'Python') {
+      const likelyPackage = repo.repository_name.includes('py-') ||
+                           repo.repository_name.endsWith('-py') ||
+                           repo.stars_count > 50;
+      
+      if (likelyPackage) {
+        return {
+          found: true,
+          score: 1.0,
+          platform: 'PyPI'
+        };
+      }
+    }
+
+    // Check if it's a Java package
+    if (repo.language === 'Java') {
+      const likelyPackage = repo.stars_count > 100; // Popular Java repos often on Maven
+      
+      if (likelyPackage) {
+        return {
+          found: true,
+          score: 1.0,
+          platform: 'Maven Central'
+        };
+      }
+    }
+
+    return {
+      found: false,
+      score: 0
     };
   };
 

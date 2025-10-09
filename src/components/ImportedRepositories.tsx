@@ -6,8 +6,10 @@ import { Separator } from '@/components/ui/separator';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
-import { Github, GitBranch, Star, GitFork, Calendar, Plus, Loader2, ExternalLink, Code, Zap } from 'lucide-react';
+import { Github, GitBranch, Star, GitFork, Calendar, Plus, Loader2, ExternalLink, Code, Zap, HelpCircle } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { RepositoryAnalysisStatus } from './RepositoryAnalysisStatus';
 
 interface Repository {
   id: string;
@@ -26,6 +28,7 @@ export function ImportedRepositories() {
   const [repositories, setRepositories] = useState<Repository[]>([]);
   const [loading, setLoading] = useState(true);
   const [addingToSoftware, setAddingToSoftware] = useState<string | null>(null);
+  const [expandedRepo, setExpandedRepo] = useState<string | null>(null);
 
   useEffect(() => {
     if (session) {
@@ -278,67 +281,84 @@ export function ImportedRepositories() {
                 ['JavaScript', 'TypeScript', 'Python', 'Java', 'Go', 'Swift'].includes(repo.language);
 
               return (
-                <div key={repo.id} className="border rounded-lg p-4 space-y-3">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-3">
-                      <PlatformIcon className="h-5 w-5 text-muted-foreground" />
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h4 className="font-semibold">{repo.repository_name}</h4>
-                          {isRecommended && (
-                            <Badge variant="secondary" className="text-xs">Recommended</Badge>
-                          )}
+                <Collapsible 
+                  key={repo.id} 
+                  open={expandedRepo === repo.id}
+                  onOpenChange={(open) => setExpandedRepo(open ? repo.id : null)}
+                >
+                  <div className="border rounded-lg p-4 space-y-3">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-3">
+                        <PlatformIcon className="h-5 w-5 text-muted-foreground" />
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h4 className="font-semibold">{repo.repository_name}</h4>
+                            {isRecommended && (
+                              <Badge variant="secondary" className="text-xs">Recommended</Badge>
+                            )}
+                          </div>
+                          <p className="text-sm text-muted-foreground capitalize">{repo.platform} Repository</p>
                         </div>
-                        <p className="text-sm text-muted-foreground capitalize">{repo.platform} Repository</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <CollapsibleTrigger asChild>
+                          <Button size="sm" variant="ghost">
+                            <HelpCircle className="h-4 w-4" />
+                          </Button>
+                        </CollapsibleTrigger>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => window.open(repo.repository_url, '_blank')}
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={() => addToSoftware(repo)}
+                          disabled={addingToSoftware === repo.id}
+                        >
+                          {addingToSoftware === repo.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Plus className="h-4 w-4" />
+                          )}
+                          Add to Software
+                        </Button>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => window.open(repo.repository_url, '_blank')}
-                      >
-                        <ExternalLink className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        onClick={() => addToSoftware(repo)}
-                        disabled={addingToSoftware === repo.id}
-                      >
-                        {addingToSoftware === repo.id ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Plus className="h-4 w-4" />
-                        )}
-                        Add to Software
-                      </Button>
-                    </div>
-                  </div>
 
-                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                    {repo.language && (
+                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                      {repo.language && (
+                        <div className="flex items-center gap-1">
+                          <div className={`w-3 h-3 rounded-full ${getLanguageColor(repo.language)}`} />
+                          {repo.language}
+                        </div>
+                      )}
+                      
                       <div className="flex items-center gap-1">
-                        <div className={`w-3 h-3 rounded-full ${getLanguageColor(repo.language)}`} />
-                        {repo.language}
+                        <Star className="h-4 w-4" />
+                        {repo.stars_count}
                       </div>
-                    )}
-                    
-                    <div className="flex items-center gap-1">
-                      <Star className="h-4 w-4" />
-                      {repo.stars_count}
+                      
+                      <div className="flex items-center gap-1">
+                        <GitFork className="h-4 w-4" />
+                        {repo.forks_count}
+                      </div>
+                      
+                      <div className="flex items-center gap-1">
+                        <Calendar className="h-4 w-4" />
+                        {new Date(repo.last_commit_date).toLocaleDateString()}
+                      </div>
                     </div>
-                    
-                    <div className="flex items-center gap-1">
-                      <GitFork className="h-4 w-4" />
-                      {repo.forks_count}
-                    </div>
-                    
-                    <div className="flex items-center gap-1">
-                      <Calendar className="h-4 w-4" />
-                      {new Date(repo.last_commit_date).toLocaleDateString()}
-                    </div>
+
+                    <CollapsibleContent>
+                      <RepositoryAnalysisStatus
+                        repository={repo}
+                      />
+                    </CollapsibleContent>
                   </div>
-                </div>
+                </Collapsible>
               );
             })}
           </div>
