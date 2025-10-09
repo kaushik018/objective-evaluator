@@ -10,6 +10,7 @@ import { Github, GitBranch, Star, GitFork, Calendar, Plus, Loader2, ExternalLink
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { RepositoryAnalysisStatus } from './RepositoryAnalysisStatus';
+import { useSoftwareAnalysis } from '@/hooks/useSoftwareAnalysis';
 
 interface Repository {
   id: string;
@@ -25,6 +26,7 @@ interface Repository {
 
 export function ImportedRepositories() {
   const { session } = useAuth();
+  const { analyzeSoftware, analyzing } = useSoftwareAnalysis();
   const [repositories, setRepositories] = useState<Repository[]>([]);
   const [loading, setLoading] = useState(true);
   const [addingToSoftware, setAddingToSoftware] = useState<string | null>(null);
@@ -80,7 +82,7 @@ export function ImportedRepositories() {
       }
 
       // Add to software table
-      const { error } = await supabase
+      const { data: newSoftware, error } = await supabase
         .from('software')
         .insert({
           user_id: session.user.id,
@@ -90,9 +92,22 @@ export function ImportedRepositories() {
           website: repo.repository_url,
           tags: [repo.platform, repo.language].filter(Boolean),
           status: 'pending'
-        });
+        })
+        .select()
+        .single();
 
       if (error) throw error;
+
+      // Trigger analysis immediately
+      if (newSoftware) {
+        await analyzeSoftware({
+          id: newSoftware.id,
+          name: newSoftware.name,
+          website: newSoftware.website,
+          api_endpoint: newSoftware.api_endpoint,
+          status_page: newSoftware.status_page
+        });
+      }
 
       // Log activity
       await supabase
@@ -101,12 +116,12 @@ export function ImportedRepositories() {
           user_id: session.user.id,
           activity_type: 'software_added',
           title: 'Repository Added',
-          description: `Added ${repo.repository_name} from ${repo.platform} to software list`
+          description: `Added ${repo.repository_name} from ${repo.platform} to software list and analyzed`
         });
 
       toast({
-        title: "Repository added",
-        description: `${repo.repository_name} has been added to your software list.`,
+        title: "Repository added and analyzed",
+        description: `${repo.repository_name} has been added and analyzed.`,
       });
 
     } catch (error: any) {
@@ -168,11 +183,25 @@ export function ImportedRepositories() {
         status: 'pending'
       }));
 
-      const { error } = await supabase
+      const { data: addedSoftware, error } = await supabase
         .from('software')
-        .insert(software);
+        .insert(software)
+        .select();
 
       if (error) throw error;
+
+      // Analyze each added software
+      if (addedSoftware) {
+        for (const soft of addedSoftware) {
+          await analyzeSoftware({
+            id: soft.id,
+            name: soft.name,
+            website: soft.website,
+            api_endpoint: soft.api_endpoint,
+            status_page: soft.status_page
+          });
+        }
+      }
 
       // Log activity
       await supabase
@@ -181,12 +210,12 @@ export function ImportedRepositories() {
           user_id: session.user.id,
           activity_type: 'software_added',
           title: 'Auto-Added Repositories',
-          description: `Automatically added ${toAdd.length} recommended repositories`
+          description: `Automatically added and analyzed ${toAdd.length} recommended repositories`
         });
 
       toast({
-        title: "Repositories added",
-        description: `Added ${toAdd.length} recommended repositories to your software list.`,
+        title: "Repositories added and analyzed",
+        description: `Added and analyzed ${toAdd.length} recommended repositories.`,
       });
 
     } catch (error: any) {

@@ -7,6 +7,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useSoftware } from '@/hooks/useSoftware';
+import { useSoftwareAnalysis } from '@/hooks/useSoftwareAnalysis';
+import { toast } from '@/hooks/use-toast';
 import { 
   Activity, 
   Plus, 
@@ -15,7 +17,9 @@ import {
   TrendingDown,
   Minus,
   Grid,
-  List
+  List,
+  RefreshCw,
+  Loader2
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -43,7 +47,8 @@ export function EnhancedSoftwareList({
   onCompare = () => {},
   onDelete 
 }: EnhancedSoftwareListProps) {
-  const { software, loading, deleteSoftware } = useSoftware();
+  const { software, loading, deleteSoftware, refetch } = useSoftware();
+  const { analyzeSoftware, analyzing } = useSoftwareAnalysis();
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [sortBy, setSortBy] = useState<'name' | 'performance' | 'uptime' | 'updated'>('updated');
@@ -188,6 +193,42 @@ export function EnhancedSoftwareList({
     return sortOrder === 'asc' ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />;
   };
 
+  const handleAnalyzePending = async () => {
+    const pendingSoftware = software.filter(s => s.status === 'pending');
+    
+    if (pendingSoftware.length === 0) {
+      toast({
+        title: "No pending items",
+        description: "All software has already been analyzed.",
+      });
+      return;
+    }
+
+    toast({
+      title: "Analyzing software",
+      description: `Analyzing ${pendingSoftware.length} pending items...`,
+    });
+
+    for (const soft of pendingSoftware) {
+      await analyzeSoftware({
+        id: soft.id,
+        name: soft.name,
+        website: soft.website,
+        api_endpoint: soft.api_endpoint,
+        status_page: soft.status_page
+      });
+    }
+
+    await refetch();
+    
+    toast({
+      title: "Analysis complete",
+      description: `Analyzed ${pendingSoftware.length} software applications.`,
+    });
+  };
+
+  const pendingCount = software.filter(s => s.status === 'pending').length;
+
   return (
     <div className="space-y-6">
       <Tabs defaultValue="software" className="w-full">
@@ -206,6 +247,21 @@ export function EnhancedSoftwareList({
               </p>
             </div>
             <div className="flex items-center gap-2">
+              {pendingCount > 0 && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={handleAnalyzePending}
+                  disabled={analyzing}
+                >
+                  {analyzing ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                  )}
+                  Analyze Pending ({pendingCount})
+                </Button>
+              )}
               <Button
                 variant="outline"
                 size="sm"
