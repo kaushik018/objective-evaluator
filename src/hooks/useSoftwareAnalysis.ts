@@ -23,6 +23,7 @@ export function useSoftwareAnalysis() {
     status_page?: string;
   }): Promise<AnalysisResult> => {
     setAnalyzing(true);
+    console.log('Starting analysis for:', software.name);
     
     try {
       let performance_score = 0;
@@ -31,38 +32,54 @@ export function useSoftwareAnalysis() {
       let status: 'excellent' | 'good' | 'fair' | 'poor' | 'pending' = 'pending';
 
       // Check if this is a repository from external_integrations
-      const { data: repoData } = await supabase
+      // Try multiple matching strategies
+      const { data: repoDataList } = await supabase
         .from('external_integrations')
         .select('*')
-        .eq('repository_name', software.name)
-        .eq('user_id', user?.id)
-        .single();
+        .eq('user_id', user?.id);
+
+      console.log('Found repos:', repoDataList?.length);
+
+      // Find matching repository by name or URL
+      const repoData = repoDataList?.find(repo => 
+        repo.repository_name === software.name ||
+        repo.repository_url === software.website ||
+        software.name.includes(repo.repository_name) ||
+        repo.repository_name.includes(software.name)
+      );
 
       if (repoData) {
+        console.log('Analyzing as repository:', repoData.repository_name);
         // Repository analysis
         const repoResult = await analyzeRepository(repoData, software.website);
         performance_score = repoResult.score;
         uptime_percentage = repoResult.uptime;
         response_time_ms = repoResult.responseTime;
+        console.log('Repository analysis result:', { performance_score, uptime_percentage });
       } else {
+        console.log('Analyzing as traditional software');
         // Traditional website/API analysis
         let sourceCount = 0;
 
         // Analyze website if provided
         if (software.website) {
+          console.log('Analyzing website:', software.website);
           const websiteResult = await analyzeWebsite(software.website);
           performance_score += websiteResult.score;
           uptime_percentage += websiteResult.uptime;
           response_time_ms = websiteResult.responseTime;
           sourceCount++;
+          console.log('Website result:', websiteResult);
         }
 
         // Analyze API endpoint if provided
         if (software.api_endpoint) {
+          console.log('Analyzing API:', software.api_endpoint);
           const apiResult = await analyzeAPI(software.api_endpoint);
           performance_score += apiResult.score;
           uptime_percentage += apiResult.uptime;
           sourceCount++;
+          console.log('API result:', apiResult);
         }
 
         // Calculate averages
@@ -73,17 +90,20 @@ export function useSoftwareAnalysis() {
       }
 
       // Determine status based on performance and uptime
-      if (performance_score >= 90 && uptime_percentage >= 99.5) {
+      // More lenient thresholds
+      if (performance_score >= 85 && uptime_percentage >= 98) {
         status = 'excellent';
-      } else if (performance_score >= 80 && uptime_percentage >= 99.0) {
+      } else if (performance_score >= 70 && uptime_percentage >= 96) {
         status = 'good';
-      } else if (performance_score >= 70 && uptime_percentage >= 98.0) {
+      } else if (performance_score >= 55 && uptime_percentage >= 93) {
         status = 'fair';
-      } else if (performance_score >= 50 && uptime_percentage >= 95.0) {
+      } else if (performance_score > 0 && uptime_percentage > 0) {
         status = 'poor';
       } else {
         status = 'pending';
       }
+
+      console.log('Final status:', status, { performance_score, uptime_percentage });
 
       // Update software in database
       const { error: updateError } = await supabase
@@ -236,44 +256,48 @@ export function useSoftwareAnalysis() {
   };
 
   const analyzeRepository = async (repo: any, providedUrl?: string): Promise<{score: number, uptime: number, responseTime: number}> => {
+    console.log('Repository analysis starting for:', repo.repository_name);
     let totalScore = 0;
-    let scoreFactors = 0;
     let responseTime = 0;
 
-    // Factor 1: Repository Health (25% of score)
+    // Factor 1: Repository Health (40% of base score - this always counts)
     const repoHealthScore = calculateRepoHealthScore(repo);
-    totalScore += repoHealthScore * 0.25;
-    scoreFactors += 0.25;
+    console.log('Repo health score:', repoHealthScore);
+    totalScore += repoHealthScore * 40;
 
-    // Factor 2: Live URL availability (35% of score if found)
+    // Factor 2: Live URL availability (40% of score if found)
     const liveUrlScore = await checkLiveUrlAvailability(providedUrl, repo);
+    console.log('Live URL check:', liveUrlScore);
     if (liveUrlScore.found) {
-      totalScore += liveUrlScore.score * 0.35;
-      scoreFactors += 0.35;
+      totalScore += liveUrlScore.score * 40;
       responseTime = liveUrlScore.responseTime;
+    } else {
+      // Still give partial credit for repo without live URL
+      totalScore += 20; // 20 points for having repo even without deployment
     }
 
-    // Factor 3: Documentation Quality (25% of score)
+    // Factor 3: Documentation Quality (10% of score - always counts)
     const docScore = calculateDocumentationScore(repo);
-    totalScore += docScore * 0.25;
-    scoreFactors += 0.25;
+    console.log('Doc score:', docScore);
+    totalScore += docScore * 10;
 
-    // Factor 4: Package Published (15% bonus if found)
+    // Factor 4: Package Published (10% bonus if found)
     const packageScore = await checkPackagePublished(repo);
+    console.log('Package check:', packageScore);
     if (packageScore.found) {
-      totalScore += packageScore.score * 0.15;
-      scoreFactors += 0.15;
+      totalScore += packageScore.score * 10;
     }
 
-    // Normalize score to 100
-    const finalScore = scoreFactors > 0 ? Math.round(totalScore / scoreFactors * 100) : 50;
+    const finalScore = Math.max(50, Math.min(100, Math.round(totalScore)));
     
     // Calculate uptime based on repository activity and live URL
     const uptime = calculateRepositoryUptime(repo, liveUrlScore.found);
 
+    console.log('Repository analysis complete:', { finalScore, uptime, responseTime });
+
     return {
-      score: Math.max(0, Math.min(100, finalScore)),
-      uptime: Math.max(90, Math.min(100, uptime)),
+      score: finalScore,
+      uptime: uptime,
       responseTime: responseTime || 0
     };
   };
